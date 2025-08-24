@@ -1,17 +1,64 @@
 #!/usr/bin/env bash
-set -euo pipefail
-sudo systemctl stop firewalld.service
-sudo systemctl disable firewalld.service
-sudo yum install nginx -y
-sudo systemctl enable nginx.service
-sudo setsebool -P httpd_can_network_connect on
+# RHEL non-interactive setup:
+# - Disable firewall
+# - Install & enable nginx
+# - setsebool httpd_can_network_connect on (persistent)
+# - Create user 'gis' with encrypted password
+# - Create/manage its group
+# - Grant sudo privileges
 
-$HASH = "$6$t8QcbDFaIcWF279g$OeBOvqFs8WRsFvkRAy6jj/mnV1JgGkQegriejvEzR.02JvBpiqEs8esEHl7qXtKiLt.R.qWAE68u4Y3TJ9qOd."
-if ! id -u "$USER_NAME" >/dev/null 2>&1; then
-  sudo useradd -m -s /bin/bash -p "$HASH" "$USER_NAME"
-  sudo usermod -aG gis gis
-else
-  sudo usermod -p "$HASH" "$USER_NAME"
-  sudo usermod -aG gis gis
+set -euo pipefail
+
+# --- Preconditions ------------------------------------------------------------
+if [[ $EUID -ne 0 ]]; then
+  echo "Please run as root (e.g., sudo $0)"; exit 1
 fi
 
+# --- 1) Disable firewall (firewalld) ------------------------------------------
+if systemctl list-unit-files | grep -q '^firewalld\.service'; then
+  systemctl disable --now firewalld || true
+fi
+
+# --- 2) Install & enable nginx -----------------------------------------------
+dnf -y install nginx
+systemctl enable --now nginx
+
+# --- 3) SELinux boolean for outbound network from web server ------------------
+# (affects nginx/httpd contexts; persistent with -P)
+setsebool -P httpd_can_network_connect on
+
+# --- 4) Create user 'gis' with encrypted password -----------------------------
+USERNAME="gis"
+PLAINTEXT_PW='1Qaz2wsx3edc'
+
+# Ensure 'gis' group exists and is primary group for the user
+groupadd -f "${USERNAME}"
+
+# Generate a SHA-512 crypt hash non-interactively (requires openssl)
+HASH="$(echo -n "${PLAINTEXT_PW}" | openssl passwd -6 -stdin)"
+
+# Create user if missing, else ensure shell/home/group and reset password
+if id -u "${USERNAME}" >/dev/null 2>&1; then
+  usermod -g "${USERNAME}" -s /bin/bash "${USERNAME}"
+  echo "${USERNAME}:${PLAINTEXT_PW}" | chpasswd -e <<<"${USERNAME}:${HASH}" 2>/dev/null || true
+  # chpasswd -e expects pre-hashed on stdin; fallback to direct chpasswd if unavailable:
+  echo "${USERNAME}:${PLAINTEXT_PW}" | chpasswd || true
+else
+  useradd -m -s /bin/bash -g "${USERNAME}" -p "${HASH}" "${USERNAME}"
+fi
+
+# --- 5) Manage group membership & sudo privileges -----------------------------
+# Add user to its own group (already primary) and to wheel for general admin:
+usermod -aG wheel "${USERNAME}"
+
+# Also grant explicit sudo via sudoers.d (keeps config simple & auditable)
+dnf -y install sudo
+SUDO_FILE="/etc/sudoers.d/90-${USERNAME}"
+echo "${USERNAME} ALL=(ALL) ALL" > "${SUDO_FILE}"
+chmod 0440 "${SUDO_FILE}"
+
+echo "All done."
+echo "Firewall: disabled"
+echo "nginx: installed and running"
+echo "SELinux boolean httpd_can_network_connect: enabled (persistent)"
+echo "User '${USERNAME}': created/updated, in groups: ${USERNAME}, wheel; sudo enabled"
