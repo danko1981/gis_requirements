@@ -1,4 +1,3 @@
-https://raw.githubusercontent.com/danko1981/gis_requirements/refs/heads/main/nginx/alterations.conf
 #!/bin/bash
 # Master setup script for GIS VMs.
 # This script ensures proper execution context, permissions, and logging.
