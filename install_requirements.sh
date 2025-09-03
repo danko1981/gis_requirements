@@ -54,11 +54,16 @@ usermod -aG wheel "${USERNAME}"
 # Also grant explicit sudo via sudoers.d (keeps config simple & auditable)
 dnf -y install sudo
 SUDO_FILE="/etc/sudoers.d/90-${USERNAME}"
-echo "${USERNAME} ALL=(ALL) ALL" > "${SUDO_FILE}"
+echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDO_FILE}"
 chmod 0440 "${SUDO_FILE}"
+
+# --- 6 Create a mountpoint for the Shared files.
+mkdir /sharedFiles
+chown -R gis:gis /sharedFiles
 
 echo "All done."
 echo "Firewall: disabled"
 echo "nginx: installed and running"
 echo "SELinux boolean httpd_can_network_connect: enabled (persistent)"
 echo "User '${USERNAME}': created/updated, in groups: ${USERNAME}, wheel; sudo enabled"
+echo "Mountopoint /sharedFiles created succesfully."
