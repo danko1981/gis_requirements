@@ -4,7 +4,7 @@
 
 # --- Configuration ---
 # IMPORTANT: Replace this URL with the raw content URL of your resize_root_lvm.sh script
-RESIZE_SCRIPT_URL="https://raw.githubusercontent.com/danko1981/gis_requirements/refs/heads/main/install_requirements.sh"
+RESIZE_SCRIPT_URL="https://raw.githubusercontent.com/danko1981/gis_requirements/refs/heads/main/resize_root_lvm.sh"
 GIS_SCRIPT_URL="https://raw.githubusercontent.com/danko1981/gis_requirements/refs/heads/main/install_requirements.sh"
 
 # --- Setup ---
