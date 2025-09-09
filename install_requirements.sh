@@ -14,10 +14,10 @@ if [[ $EUID -ne 0 ]]; then
   echo "Please run as root (e.g., sudo $0)"; exit 1
 fi
 
-# --- 1) Disable firewall (firewalld) ------------------------------------------
-if systemctl list-unit-files | grep -q '^firewalld\.service'; then
-  systemctl disable --now firewalld || true
-fi
+# --- 1) Add Firewall Roules ------------------------------------------
+firewall-cmd --permanent --add-port=80/tcp
+firewall-cmd --permanent --add-port=443/tcp
+firewall-cmd --permanent --add-port=9200/tcp
 
 # --- 2) Install & enable nginx -----------------------------------------------
 dnf -y install nginx
